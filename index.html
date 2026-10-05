@@ -528,7 +528,7 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
         const badge = document.createElement("span");
         badge.className = "new-finding-badge";
         badge.dataset.freshnessUi = "true";
-        badge.textContent = "НОВЕ • <24 ГОД";
+        badge.textContent = "НОВЕ • ДО 24 ГОД";
         card.appendChild(badge);
       }
     }
@@ -540,7 +540,7 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
       const badge = document.createElement("span");
       badge.className = "new-finding-badge";
       badge.dataset.freshnessUi = "true";
-      badge.textContent = "НОВЕ • <24 ГОД";
+      badge.textContent = "НОВЕ • ДО 24 ГОД";
       card.appendChild(badge);
     });
     const banner = document.createElement("div");
@@ -604,6 +604,9 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
   function comparableBody(doc) {
     const body = doc.body.cloneNode(true);
     body.querySelectorAll("script[data-freshness-check], [data-freshness-ui]").forEach(el => el.remove());
+    body.querySelectorAll("script[data-freshness-check], script[data-new-finding-highlighter], [data-freshness-ui]").forEach(el => el.remove());
+    body.querySelectorAll(".card.is-new-finding").forEach(el => el.classList.remove("is-new-finding"));
+    body.querySelectorAll('[tabindex="-1"]').forEach(el => el.removeAttribute("tabindex"));
     return body.innerHTML.replace(/>\s+</g, "><").trim();
   }
   async function checkForUpdates(force = false) {
