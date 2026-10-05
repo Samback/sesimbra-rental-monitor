@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sesimbra-rental-push",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-05",
+  "observability": { "enabled": true },
+  "kv_namespaces": [
+    {
+      "binding": "PUSH_STATE",
+      "id": "6d85396d47e5432aa0fc68b9399c10d6"
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://samback.github.io",
+    "VAPID_SUBJECT": "https://samback.github.io/sesimbra-rental-monitor/"
+  }
+}
