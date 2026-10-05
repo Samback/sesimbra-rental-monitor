@@ -1,17 +1,28 @@
 # Sesimbra rental push Worker
 
-This Worker sends web push to subscriptions created by the catalog’s opt-in button.
+This Worker provides the backend for opt-in web push from the rental catalog. The Codex monitor remains responsible for verifying listings; the Worker does not crawl property sites.
 
-## Cloudflare resources
+## Cloudflare deployment
 
-1. Create a Workers KV namespace and bind it as `PUSH_STATE`.
-2. Set the text variable `ALLOWED_ORIGIN` to `https://samback.github.io`.
-3. Set the text variable `VAPID_SUBJECT` to `https://samback.github.io/sesimbra-rental-monitor/`.
-4. Set the text variable `VAPID_PUBLIC_KEY` and secret `VAPID_PRIVATE_KEY` to one matching VAPID key pair.
-5. Set the secret `NOTIFY_TOKEN` to a random token. The monitor workflow will use the same token as a GitHub Actions secret.
-6. Replace the KV namespace ID in `wrangler.jsonc` before deploying.
+Cloudflare Workers Builds is connected to this repository with:
 
-Keep the private VAPID key and notification token out of Git, logs, and chat. The Worker accepts subscription writes only from the catalog origin, and accepts notification events only with the bearer token.
+- Production branch: `main`
+- Root directory: `/worker`
+- Deploy command: `npx wrangler deploy`
+- KV binding: `PUSH_STATE`, configured in `wrangler.jsonc`
+
+Push a commit that changes a file under `worker/` to build and deploy the Worker.
+
+## Runtime configuration
+
+The Wrangler config sets the public catalog origin and VAPID subject. The `PUSH_STATE` KV namespace ID is also configured there.
+
+Add these values as Worker runtime settings in Cloudflare. Never commit the secrets or put them in chat:
+
+1. `VAPID_PUBLIC_KEY` (text variable) and `VAPID_PRIVATE_KEY` (secret) from the same VAPID key pair.
+2. `NOTIFY_TOKEN` (secret), also needed by whichever trusted monitor sender calls `POST /notify`.
+
+The push sender still needs to be connected to the monitoring workflow. The site must also be configured with the Worker URL and matching public VAPID key before visitors can subscribe.
 
 ## Routes
 
@@ -21,4 +32,4 @@ Keep the private VAPID key and notification token out of Git, logs, and chat. Th
 - `POST /unsubscribe`: removes a subscription.
 - `POST /notify`: sends one verified, long-term, eligible listing event; duplicate event IDs are ignored.
 
-The Worker does not crawl listings. The existing Codex monitor remains responsible for verification and catalog updates.
+The Worker accepts subscription writes only from the catalog origin, and accepts notification events only with the bearer token.
