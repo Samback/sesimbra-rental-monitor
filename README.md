@@ -12,6 +12,7 @@ Automatically maintained rental watch for long-term rentals around Sesimbra, Por
 - Santana
 - Corredoura
 - Zambujal
+- Venda Nova
 
 ### Main criteria
 - T3 / 3 quartos / moradia T3: up to €1,600/month
