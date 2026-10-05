@@ -466,4 +466,103 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
 </section>
 </main>
 <footer><b>Правила:</b> Пріоритетні райони: Sesimbra, Maçã, Cotovia, Sampaio, Santana, Corredoura, Zambujal, Venda Nova. T3 ≤ €1600; T2 ≤ €1600 тільки при площі строго &gt;90 м²; основний розділ — довгострокова оренда; AI-generated/AI-edited фото цього самого оголошення дозволені; фото іншого об'єкта та вигадані URL заборонені; search/list URL не використовуються як пряме посилання на оголошення.</footer>
+<script data-freshness-check>
+(() => {
+  const CHECK_INTERVAL = 5 * 60 * 1000;
+  const MIN_CHECK_GAP = 30 * 1000;
+  const LAST_CHECK_KEY = "sesimbraCatalogLastCheck";
+  let checking = false;
+  let touchStartY = 0;
+  let pullDistance = 0;
+  let pullTriggered = false;
+
+  const status = document.createElement("div");
+  status.dataset.freshnessUi = "true";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.style.cssText = "position:fixed;z-index:9999;top:env(safe-area-inset-top,0px);left:50%;transform:translate(-50%,-150%);padding:10px 16px;border-radius:0 0 12px 12px;background:#111827;color:#fff;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;box-shadow:0 3px 12px #0003;transition:transform .2s ease;max-width:90vw;text-align:center";
+  document.addEventListener("DOMContentLoaded", () => document.body.appendChild(status), { once:true });
+
+  function show(message) {
+    if (!status.isConnected && document.body) document.body.appendChild(status);
+    status.textContent = message;
+    status.style.transform = "translate(-50%,0)";
+  }
+  function hide() {
+    status.style.transform = "translate(-50%,-150%)";
+  }
+  function comparableBody(doc) {
+    const body = doc.body.cloneNode(true);
+    body.querySelectorAll("script[data-freshness-check], [data-freshness-ui]").forEach(el => el.remove());
+    return body.innerHTML.replace(/>\s+</g, "><").trim();
+  }
+  async function checkForUpdates(force = false) {
+    if (checking || document.visibilityState === "hidden") return;
+    const now = Date.now();
+    let lastCheck = 0;
+    try { lastCheck = Number(sessionStorage.getItem(LAST_CHECK_KEY)) || 0; } catch {}
+    if (!force && now - lastCheck < MIN_CHECK_GAP) return;
+    checking = true;
+    try { sessionStorage.setItem(LAST_CHECK_KEY, String(now)); } catch {}
+    show(force ? "Перевіряю оновлення…" : "Перевіряю актуальність…");
+    try {
+      const url = new URL(location.href);
+      url.searchParams.set("_catalog_check", String(now));
+      const response = await fetch(url.href, {
+        method:"GET",
+        cache:"no-store",
+        credentials:"same-origin",
+        headers:{"Accept":"text/html"}
+      });
+      if (!response.ok) throw new Error("Catalog check failed");
+      const html = await response.text();
+      const freshDoc = new DOMParser().parseFromString(html, "text/html");
+      if (!freshDoc.body || !freshDoc.body.textContent.trim()) throw new Error("Empty catalog response");
+      if (comparableBody(document) !== comparableBody(freshDoc)) {
+        show("Знайдено нову версію — оновлюю…");
+        const reloadUrl = new URL(location.href);
+        reloadUrl.searchParams.set("_catalog_updated", String(Date.now()));
+        location.replace(reloadUrl.href);
+        return;
+      }
+      show(force ? "Оновлень немає" : "Сторінка актуальна");
+      window.setTimeout(hide, 1400);
+    } catch {
+      show("Не вдалося перевірити оновлення");
+      window.setTimeout(hide, 2200);
+    } finally {
+      checking = false;
+    }
+  }
+
+  window.addEventListener("pageshow", () => checkForUpdates(false));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") checkForUpdates(false);
+  });
+  window.addEventListener("focus", () => checkForUpdates(false));
+  window.setInterval(() => checkForUpdates(false), CHECK_INTERVAL);
+
+  window.addEventListener("touchstart", event => {
+    if (window.scrollY <= 0 && event.touches.length === 1) {
+      touchStartY = event.touches[0].clientY;
+      pullDistance = 0;
+      pullTriggered = false;
+    } else {
+      touchStartY = 0;
+    }
+  }, { passive:true });
+  window.addEventListener("touchmove", event => {
+    if (!touchStartY || window.scrollY > 0 || event.touches.length !== 1) return;
+    pullDistance = Math.max(0, event.touches[0].clientY - touchStartY);
+    if (pullDistance >= 78 && !pullTriggered) {
+      pullTriggered = true;
+      checkForUpdates(true);
+    }
+  }, { passive:true });
+  window.addEventListener("touchend", () => {
+    touchStartY = 0;
+    pullDistance = 0;
+  }, { passive:true });
+})();
+</script>
 </body></html>
