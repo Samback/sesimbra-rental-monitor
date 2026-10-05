@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const workerUrl = (process.env.PUSH_WORKER_URL || "").replace(/\/$/, "");
+const workerUrl = (process.env.PUSH_WORKER_URL || "").replace(/\/+$/, "");
 const token = process.env.SESIMBRA_NOTIFY_TOKEN || "";
 const currentHtml = readFileSync("index.html", "utf8");
 const before = process.env.GITHUB_EVENT_BEFORE || "";
@@ -32,20 +32,20 @@ const events = [];
 for (const item of current.values()) {
   const old = previous.get(item.url);
   let type = "";
-  if (/repost|relisted|republicad[oa]/i.test(item.status)) {
-    type = "relisted";
-  } else if (!old) {
-    type = "new";
+  if (!old) {
+    type = /repost|relisted|republicad[oa]|повторно опублик|повторно опублік/i.test(item.status)
+      ? "relisted"
+      : "new";
   } else if (old.price !== item.price) {
     type = "price_changed";
-  } else if (old.status !== item.status || old.details !== item.details) {
+  } else if (old.signature !== item.signature) {
     type = "terms_changed";
   }
   if (!type) continue;
 
-  const fingerprint = [sha, item.url, type, item.price, item.status, item.details].join("\n");
+  const eventId = digest([sha, item.url, type, item.price, item.signature].join("\n"));
   events.push({
-    eventId: digest(fingerprint),
+    eventId,
     listingId: digest(item.url),
     type,
     title: item.title.slice(0, 90),
@@ -68,67 +68,88 @@ for (const event of events) {
   const response = await fetch(workerUrl + "/notify", {
     method: "POST",
     headers: {
-      "Authorization": "Bearer " + token,
+      Authorization: "Bearer " + token,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(event)
   });
   const body = await response.text();
   if (!response.ok) {
-    throw new Error("Push Worker rejected " + event.type + " for " + event.url + " (HTTP " + response.status + "): " + body);
+    throw new Error("Push Worker rejected " + event.type + " for " + event.url +
+      " (HTTP " + response.status + "): " + body);
   }
   console.log("Push event " + event.type + " for " + event.url + ": " + body);
 }
 
 function parseEligible(html) {
   const listings = [];
-  const sectionPattern = /<section\\b[^>]*>([\\s\\S]*?)<\\/section>/gi;
-  for (const sectionMatch of html.matchAll(sectionPattern)) {
-    const sectionHtml = sectionMatch[1];
-    const section = text(capture(sectionHtml, "h2"));
-    if (/filtered|відсіяні/i.test(section)) continue;
+  const sections = /<section\b[^>]*>([\s\S]*?)<\/section>/gi;
 
-    const articlePattern = /<article\\b([^>]*)>([\\s\\S]*?)<\\/article>/gi;
-    for (const articleMatch of sectionHtml.matchAll(articlePattern)) {
-      if (!/\\bcard\\b/.test(attribute(articleMatch[1], "class"))) continue;
+  for (const sectionMatch of html.matchAll(sections)) {
+    const sectionHtml = sectionMatch[1];
+    const sectionTitle = text(capture(sectionHtml, "h2"));
+    if (/filtered|відсіяні/i.test(sectionTitle)) continue;
+
+    const articles = /<article\b([^>]*)>([\s\S]*?)<\/article>/gi;
+    for (const articleMatch of sectionHtml.matchAll(articles)) {
+      if (!classNames(articleMatch[1]).includes("card")) continue;
+
       const card = articleMatch[2];
       const title = text(capture(card, "h3"));
       const price = text(captureByClass(card, "price"));
       const status = text(captureByClass(card, "status"));
-      const factText = [...card.matchAll(/<span\\b[^>]*>([\\s\\S]*?)<\\/span>/gi)]
-        .map(match => text(match[1])).join(" ");
-      const areaText = factText.match(/[0-9][0-9\\s.,]*\\s*(?:м²|m²|m2|sqm)\\b?/i)?.[0] || "";
-      const bedMatch = (title + " " + factText).match(/\\bT\\s*([23])\\b|\\b([23])\\s*quartos\\b/i);
-      const bedrooms = Number(bedMatch?.[1] || bedMatch?.[2] || 0);
-      const priceMatch = price.match(/€\\s*([0-9][0-9\\s.,]*)/);
-      const monthlyPrice = Number((priceMatch?.[1] || "").replace(/\\D/g, ""));
-      const area = Number((areaText.match(/[0-9][0-9\\s.,]*/) || [""])[0].replace(/\\D/g, ""));
-      const longTerm = /(?:довгостроковість|long[\\s-]*term|longa duração)[^.;]{0,60}(?:підтверджено|confirmed|confirmado|\\bsim\\b|\\byes\\b)/i.test(status);
+      const factsHtml = captureByClass(card, "facts");
+      const facts = text(factsHtml);
+      const combined = [title, facts, status].join(" ");
+      const bedroomMatch = combined.match(/\bT\s*([23])\b|(?:^|\s)([23])\s*quartos?\b/i);
+      const bedrooms = Number(bedroomMatch?.[1] || bedroomMatch?.[2] || 0);
+      const priceMatch = price.match(/€\s*([\d][\d\s.,]*)/);
+      const monthlyPrice = Number((priceMatch?.[1] || "").replace(/\D/g, ""));
+      const areaMatch = combined.match(/([\d]+(?:[.,]\d+)?)\s*(?:м²|m²|m2|sqm)\b?/i);
+      const areaNumber = Number((areaMatch?.[1] || "").replace(",", "."));
+      const longTermConfirmed = isConfirmedLongTerm(combined);
       const href = listingHref(card);
-      if (!href || !longTerm || !monthlyPrice || !bedrooms) continue;
+
+      if (!href || !longTermConfirmed || !monthlyPrice || !bedrooms) continue;
       if (bedrooms === 3 && monthlyPrice > 1600) continue;
-      if (bedrooms === 2 && (monthlyPrice > 1600 || area <= 90)) continue;
+      if (bedrooms === 2 && (monthlyPrice > 1600 || !(areaNumber > 90))) continue;
       if (bedrooms !== 2 && bedrooms !== 3) continue;
 
-      const details = [...card.matchAll(/<p\\b([^>]*)>([\\s\\S]*?)<\\/p>/gi)]
-        .filter(match => !/photo-note/i.test(attribute(match[1], "class")))
-        .map(match => text(match[2])).join(" | ");
-      const areaName = title.split(/[—–-]/).slice(1).join(" — ").trim() || section;
-      listings.push({ url: href, title, area: areaName, price, status, details });
+      const descriptions = [...card.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi)]
+        .filter(match => !classNames(match[1]).includes("photo-note"))
+        .map(match => text(match[2]))
+        .filter(Boolean);
+      const area = title.split(/[—–-]/).slice(1).join(" — ").trim() || sectionTitle;
+      const signature = stableText([
+        title,
+        facts,
+        status,
+        ...descriptions
+      ].join(" | "));
+
+      listings.push({ url: href, title, area, price, status, signature });
     }
   }
   return listings;
 }
 
+function isConfirmedLongTerm(value) {
+  if (/short[\s-]*term|temporary|tempor[aá]ria|temporada|curta dura[cç][aã]o|27\s*dias/i.test(value)) {
+    return false;
+  }
+  return /(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков(?:ий|а|е|ість)|contrato(?:\s+de)?\s+\d+\s+anos)[^.!?]{0,100}(?:confirmad[oa]|confirmed|sim|yes)|(?:confirmad[oa]|confirmed|sim|yes)[^.!?]{0,100}(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков|contrato de longa dura[cç][aã]o)/i.test(value);
+}
+
 function listingHref(card) {
-  for (const match of card.matchAll(/<a\\b([^>]*)>/gi)) {
+  for (const match of card.matchAll(/<a\b([^>]*)>/gi)) {
     const attrs = match[1];
-    if (!/\\bbtn\\b/.test(attribute(attrs, "class"))) continue;
+    if (!classNames(attrs).includes("btn")) continue;
     const href = attribute(attrs, "href");
     if (!href) continue;
     try {
       const url = new URL(decode(href), "https://samback.github.io/sesimbra-rental-monitor/");
-      if (url.protocol !== "https:" || /search|category|\\/(?:rent|rendas)\\/?$/i.test(url.pathname)) continue;
+      if (url.protocol !== "https:") continue;
+      if (/search|category|\/(?:rent|rendas)\/?$/i.test(url.pathname)) continue;
       return url.href;
     } catch {}
   }
@@ -136,32 +157,55 @@ function listingHref(card) {
 }
 
 function capture(html, tag) {
-  const match = html.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + ">", "i"));
+  const escapedTag = tag.replace(/[.*+?^}()|[\]\\]/g, "\\$&");
+  const match = html.match(new RegExp("<" + escapedTag + "\\b[^>]*>([\\s\\S]*?)<\\/" + escapedTag + ">", "i"));
   return match ? match[1] : "";
 }
 
 function captureByClass(html, className) {
-  for (const match of html.matchAll(/<([a-z0-9]+)\\b([^>]*)>([\\s\\S]*?)<\\/\\1>/gi)) {
-    if (attribute(match[2], "class").split(/\\s+/).includes(className)) return match[3];
+  for (const match of html.matchAll(/<([a-z0-9]+)\b([^>]*)>([\s\S]*?)<\/\1>/gi)) {
+    if (classNames(match[2]).includes(className)) return match[3];
   }
   return "";
 }
 
+function classNames(attrs) {
+  return (attribute(attrs, "class").match(/\S+/g) || []);
+}
+
 function attribute(attrs, name) {
-  const escaped = name.replace(/[.*+?^\u0024{}()|[\\]\\\\]/g, "\\$&");
-  const match = attrs.match(new RegExp("\\b" + escaped + "\\s*=\\s*(['\\\"])(.*?)\\1", "i"));
-  return match ? decode(match[2]) : "";
+  const match = attrs.match(/(?:^|\s)(?:class|href)\s*=\s*(["'])(.*?)\1/i);
+  if (!match) return "";
+  if (name === "class" && !/^\s*class\b/i.test(match[0])) {
+    const classMatch = attrs.match(/(?:^|\s)class\s*=\s*(["'])(.*?)\1/i);
+    return classMatch ? decode(classMatch[2]) : "";
+  }
+  if (name === "href" && !/^\s*href\b/i.test(match[0])) {
+    const hrefMatch = attrs.match(/(?:^|\s)href\s*=\s*(["'])(.*?)\1/i);
+    return hrefMatch ? decode(hrefMatch[2]) : "";
+  }
+  return decode(match[2]);
 }
 
 function text(value) {
-  return decode(value.replace(/<[^>]*>/g, " ").replace(/\\s+/g, " ").trim());
+  return decode(value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+function stableText(value) {
+  return text(value)
+    .replace(/\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/g, "")
+    .replace(/\b(?:checked|updated|перевірено|оновлено)\b[^|.]{0,60}/gi, "")
+    .replace(/\b\d+\s*(?:photos?|фото)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function decode(value) {
   return value.replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, "\\\"")
+    .replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, "\"")
     .replace(/&#39;|&apos;/gi, "'")
-    .replace(/&#(\\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 }
 
