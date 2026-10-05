@@ -34,7 +34,19 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
 .gallery-item .photo-badge{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;padding:4px 7px;border-radius:6px}
 @media(max-width:700px){.gallery-track{grid-template-columns:1fr}}
 
-.gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px}.gallery-item{min-width:100%;margin:0;position:relative;scroll-snap-align:start}.gallery-item img{width:100%;height:280px;object-fit:cover;display:block}.photo-badge{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;padding:5px 8px;border-radius:8px;font-size:12px}.photo-count{padding:8px 12px;font-size:12px;color:#666}.img-fallback{min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}.broken{display:none!important}</style>
+.gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px}.gallery-item{min-width:100%;margin:0;position:relative;scroll-snap-align:start}.gallery-item img{width:100%;height:280px;object-fit:cover;display:block}.photo-badge{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;padding:5px 8px;border-radius:8px;font-size:12px}.photo-count{padding:8px 12px;font-size:12px;color:#666}.img-fallback{min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}.broken{display:none!important}
+.card{position:relative}
+.card.is-new-finding{border:2px solid #e19b18;box-shadow:0 0 0 4px rgba(255,190,58,.2),0 9px 28px rgba(157,100,0,.2);animation:newFindingPulse 1.8s ease-in-out 4}
+.new-finding-badge{position:absolute;top:12px;right:12px;z-index:5;padding:8px 10px;border-radius:999px;background:#a64700;color:#fff;font-size:12px;font-weight:900;letter-spacing:.03em;box-shadow:0 3px 12px #0003;animation:newBadgePop .45s cubic-bezier(.2,.8,.2,1) both}
+.new-finding-banner{position:fixed;z-index:10001;top:calc(env(safe-area-inset-top,0px) + 48px);left:12px;right:12px;max-width:600px;margin:auto;display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid #e9ad35;border-radius:14px;background:#fff4cf;color:#583800;box-shadow:0 8px 26px #0003;font:700 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;animation:newBannerIn .35s ease-out both}
+.new-finding-banner button{border:0;border-radius:9px;padding:9px 11px;background:#8f4500;color:#fff;font:inherit;white-space:nowrap}
+.new-finding-banner .new-finding-dismiss{margin-left:auto;background:transparent;color:#583800;padding:4px 7px;font-size:20px}
+@keyframes newFindingPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,190,58,.18),0 5px 20px rgba(0,0,0,.06)}50%{box-shadow:0 0 0 8px rgba(255,190,58,.38),0 10px 30px rgba(157,100,0,.28)}}
+@keyframes newBadgePop{from{opacity:0;transform:translateY(-8px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes newBannerIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.card.is-new-finding,.new-finding-badge,.new-finding-banner{animation:none}}
+
+</style>
 <style>
 .photo-count{
   background:rgba(15,23,42,.88)!important;
@@ -466,6 +478,104 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
 </section>
 </main>
 <footer><b>Правила:</b> Пріоритетні райони: Sesimbra, Maçã, Cotovia, Sampaio, Santana, Corredoura, Zambujal, Venda Nova. T3 ≤ €1600; T2 ≤ €1600 тільки при площі строго &gt;90 м²; основний розділ — довгострокова оренда; AI-generated/AI-edited фото цього самого оголошення дозволені; фото іншого об'єкта та вигадані URL заборонені; search/list URL не використовуються як пряме посилання на оголошення.</footer>
+<script data-new-finding-highlighter>
+(() => {
+  const STORAGE_KEY = "sesimbraRentalMonitorSeenListingsV1";
+  const FRESH_MS = 24 * 60 * 60 * 1000;
+  const cards = [...document.querySelectorAll("article.card, .card")];
+  if (!cards.length) return;
+
+  const identities = cards.map((card, index) => {
+    const links = [...card.querySelectorAll(".btn[href]")].map(link => {
+      try {
+        const url = new URL(link.href, location.href);
+        url.hash = "";
+        return url.href;
+      } catch { return ""; }
+    }).filter(Boolean).sort();
+    const title = card.querySelector("h3")?.textContent.trim() || "listing";
+    const price = card.querySelector(".price")?.textContent.trim() || "";
+    const section = card.closest("section")?.querySelector("h2")?.textContent.trim() || "";
+    return links.length ? links.join("|") : [section, title, price, index].join("|");
+  });
+
+  let state;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    state = saved ? JSON.parse(saved) : null;
+  } catch { state = null; }
+
+  const now = Date.now();
+  const newCards = [];
+  if (!state || state.version !== 1 || !state.items || typeof state.items !== "object") {
+    const baseline = {};
+    identities.forEach(id => { baseline[id] = now - FRESH_MS - 1; });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({version:1, items:baseline})); } catch {}
+    return;
+  }
+
+  const items = state.items;
+  identities.forEach((id, index) => {
+    let seenAt = Number(items[id]) || 0;
+    if (!seenAt) {
+      seenAt = now;
+      items[id] = seenAt;
+      newCards.push(cards[index]);
+    } else if (now - seenAt < FRESH_MS) {
+      const card = cards[index];
+      card.classList.add("is-new-finding");
+      if (!card.querySelector(".new-finding-badge")) {
+        const badge = document.createElement("span");
+        badge.className = "new-finding-badge";
+        badge.dataset.freshnessUi = "true";
+        badge.textContent = "НОВЕ • <24 ГОД";
+        card.appendChild(badge);
+      }
+    }
+  });
+
+  if (newCards.length) {
+    newCards.forEach(card => {
+      card.classList.add("is-new-finding");
+      const badge = document.createElement("span");
+      badge.className = "new-finding-badge";
+      badge.dataset.freshnessUi = "true";
+      badge.textContent = "НОВЕ • <24 ГОД";
+      card.appendChild(badge);
+    });
+    const banner = document.createElement("div");
+    banner.className = "new-finding-banner";
+    banner.dataset.freshnessUi = "true";
+    banner.setAttribute("role", "status");
+    banner.setAttribute("aria-live", "polite");
+    const message = document.createElement("span");
+    message.textContent = newCards.length === 1
+      ? "Знайдено нове оголошення за останні 24 години"
+      : "Знайдено " + newCards.length + " нових оголошень за останні 24 години";
+    const jump = document.createElement("button");
+    jump.type = "button";
+    jump.textContent = "Показати";
+    jump.addEventListener("click", () => {
+      newCards[0].scrollIntoView({behavior:"smooth", block:"center"});
+      newCards[0].setAttribute("tabindex", "-1");
+      newCards[0].focus({preventScroll:true});
+      banner.remove();
+    });
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "new-finding-dismiss";
+    close.setAttribute("aria-label", "Закрити повідомлення");
+    close.textContent = "×";
+    close.addEventListener("click", () => banner.remove());
+    banner.append(message, jump, close);
+    document.body.appendChild(banner);
+  }
+
+  const cutoff = now - 30 * 24 * 60 * 60 * 1000;
+  const retained = Object.fromEntries(Object.entries(items).filter(([, timestamp]) => Number(timestamp) >= cutoff));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({version:1, items:retained})); } catch {}
+})();
+</script>
 <script data-freshness-check>
 (() => {
   const CHECK_INTERVAL = 5 * 60 * 1000;
