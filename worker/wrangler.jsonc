@@ -12,6 +12,7 @@
   ],
   "vars": {
     "ALLOWED_ORIGIN": "https://samback.github.io",
-    "VAPID_SUBJECT": "https://samback.github.io/sesimbra-rental-monitor/"
+    "VAPID_SUBJECT": "https://samback.github.io/sesimbra-rental-monitor/",
+    "VAPID_PUBLIC_KEY": "BMonEdNBb5rGwfFz2XNmR6_Mbx0FLM-R8wAkNr6afQE1wERXm-kvLBrVced-n5ECDiwzm2WmiKY1onhtsrVbaTA"
   }
 }
