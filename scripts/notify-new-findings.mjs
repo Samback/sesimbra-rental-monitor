@@ -105,7 +105,7 @@ function parseEligible(html) {
       const bedrooms = Number(bedroomMatch?.[1] || bedroomMatch?.[2] || 0);
       const priceMatch = price.match(/€\s*([\d][\d\s.,]*)/);
       const monthlyPrice = Number((priceMatch?.[1] || "").replace(/\D/g, ""));
-      const areaMatch = combined.match(/([\d]+(?:[.,]\d+)?)\s*(?:м²|m²|m2|sqm)\b?/i);
+      const areaMatch = combined.match(/([\d]+(?:[.,]\d+)?)\s*(?:м²|m²|m2|sqm)/i);
       const areaNumber = Number((areaMatch?.[1] || "").replace(",", "."));
       const longTermConfirmed = isConfirmedLongTerm(combined);
       const href = listingHref(card);
