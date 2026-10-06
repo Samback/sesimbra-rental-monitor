@@ -60,6 +60,7 @@ if (articles.length === 0) {
   fail("No listing cards were found.");
 }
 
+const gridBounds = new Map();
 for (const section of sections) {
   if (mainStart >= 0 && mainEnd >= mainStart &&
       (section.index < mainStart || section.index + section[0].length > mainEnd)) {
@@ -67,11 +68,36 @@ for (const section of sections) {
     break;
   }
 
-  const grid = section[0].search(/<div\b[^>]*\bclass\s*=\s*["'][^"']*\bgrid\b[^"']*["'][^>]*>/i);
-  if (grid < 0) {
-    fail("A catalog section is missing its card grid.");
-    break;
+  const gridOpenings = matches(
+    section[0],
+    /<div\b[^>]*\bclass\s*=\s*["'][^"']*\bgrid\b[^"']*["'][^>]*>/gi
+  );
+  if (gridOpenings.length !== 1) {
+    fail("Each catalog section must contain exactly one card grid.");
+    continue;
   }
+
+  const divTags = /<\/?div\b[^>]*>/gi;
+  divTags.lastIndex = gridOpenings[0].index;
+  let depth = 0;
+  let gridClose = -1;
+  let divTag;
+  while ((divTag = divTags.exec(section[0]))) {
+    depth += /^<\//.test(divTag[0]) ? -1 : 1;
+    if (depth === 0) {
+      gridClose = divTag.index;
+      break;
+    }
+  }
+  if (gridClose < 0) {
+    fail("A catalog section's card grid has no matching closing </div>.");
+    continue;
+  }
+
+  gridBounds.set(section, {
+    start: section.index + gridOpenings[0].index,
+    end: section.index + gridClose
+  });
 }
 
 for (const article of articles) {
@@ -84,10 +110,11 @@ for (const article of articles) {
     break;
   }
 
-  const section = containingSections[0];
-  const grid = section[0].search(/<div\b[^>]*\bclass\s*=\s*["'][^"']*\bgrid\b[^"']*["'][^>]*>/i);
-  if (article.index < section.index + grid) {
-    fail("A listing card appears before its section's card grid.");
+  const bounds = gridBounds.get(containingSections[0]);
+  if (!bounds ||
+      article.index < bounds.start ||
+      article.index + article[0].length > bounds.end) {
+    fail("A listing card is outside its section's card grid.");
     break;
   }
 
