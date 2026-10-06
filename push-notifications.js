@@ -15,8 +15,17 @@
   }
 
   navigator.serviceWorker.register("./service-worker.js", { scope: "./" })
-    .then(() => {
+    .then(async registration => {
       if (config.apiBaseUrl && config.vapidPublicKey) {
+        const existingSubscription = Notification.permission === "granted"
+          ? await registration.pushManager.getSubscription()
+          : null;
+        if (existingSubscription) {
+          button.hidden = true;
+          button.setAttribute("aria-hidden", "true");
+          status.textContent = "Сповіщення вже увімкнено на цьому пристрої.";
+          return;
+        }
         button.disabled = false;
         status.textContent = "Увімкніть сповіщення, щоб отримувати нові перевірені оголошення.";
       } else {
@@ -62,6 +71,8 @@
       });
       if (!response.ok) throw new Error("Subscription could not be saved");
       status.textContent = "Сповіщення увімкнено на цьому пристрої.";
+      button.hidden = true;
+      button.setAttribute("aria-hidden", "true");
     } catch {
       status.textContent = "Не вдалося увімкнути сповіщення. Спробуйте ще раз пізніше.";
     } finally {
