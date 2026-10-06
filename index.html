@@ -1,7 +1,21 @@
 <!DOCTYPE html>
 
 <html lang="uk"><head><meta charset="utf-8"/>
-<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="width=device-width,initial-scale=1" name="vi
+<article class="card" data-found-at="2026-10-06T09:11:00+01:00">
+<div class="media-fallback"><b>8 фото доступні на сторінці OLX</b><span>Файли фото не вдалося надійно отримати для вбудовування. Відкрийте конкретне оголошення, щоб переглянути галерею. AI-статус: потрібно підтвердити.</span></div>
+<div class="body">
+<div class="source">OLX • знайдено 06.10.2026 • перевірено 06.10.2026</div>
+<h3>T3 — Almoínha, Sesimbra</h3>
+<div class="price">€1 200/міс.</div>
+<div class="facts"><span>96 м² брутто</span><span>96 м² корисної</span><span>T3</span><span>1 ванна</span><span>3-й поверх</span><span>без ліфта</span><span>без меблів</span><span>балкон • комора</span></div>
+<div class="status">Відсіяно з основного розділу: довгостроковість потрібно підтвердити. Продавець був онлайн 05.10.2026 о 15:08.</div>
+<p>Квартира в Almoínha, Castelo (Sesimbra). Три спальні, одна з балконом і шафою; балкон також є у вітальні. Кухня та оновлена ванна. Обладнання кухні, паркінг і сад — потрібно підтвердити. Сторінка OLX вказує ціну €1 200/місяць і дату публікації 08.04.2026.</p>
+<div class="photo-note">На сторінці оголошення показано 8 фото; самі файли не вдалося надійно отримати. Використано блок переходу до сторінки, без чужих або неперевірених зображень.</div>
+<a class="btn" href="https://www.olx.pt/d/anuncio/t3-para-arrendamento-em-almonha-sesimbra-IDJklD0.html" rel="noopener" target="_blank">Відкрити конкретне оголошення →</a>
+</div>
+</article>
+ewport"/>
 <link rel="manifest" href="./manifest.webmanifest"/>
 <meta name="theme-color" content="#111827"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -772,6 +786,24 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
     touchStartY = 0;
     pullDistance = 0;
   }, { passive:true });
+})();
+</script>
+<script data-explicit-finding-highlighter>
+(() => {
+  const freshWindow = 24 * 60 * 60 * 1000;
+  document.querySelectorAll("article.card[data-found-at]").forEach(card => {
+    const foundAt = Date.parse(card.dataset.foundAt || "");
+    const age = Date.now() - foundAt;
+    if (!Number.isFinite(foundAt) || age < 0 || age >= freshWindow) return;
+    card.classList.add("is-new-finding");
+    if (!card.querySelector(".new-finding-badge")) {
+      const badge = document.createElement("span");
+      badge.className = "new-finding-badge";
+      badge.dataset.freshnessUi = "true";
+      badge.textContent = "ЗНАЙДЕНО • ДО 24 ГОД";
+      card.appendChild(badge);
+    }
+  });
 })();
 </script>
 </body></html>
