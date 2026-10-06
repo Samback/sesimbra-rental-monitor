@@ -1,14 +1,25 @@
 (() => {
   const button = document.getElementById("enable-push");
   const status = document.getElementById("push-status");
+  const panel = document.querySelector(".push-panel");
   const config = window.SESIMBRA_PUSH_CONFIG || {};
-  if (!button || !status) return;
+  if (!button || !status || !panel) return;
+
+  const showPanel = () => {
+    panel.hidden = false;
+    panel.removeAttribute("aria-hidden");
+  };
+  const hidePanel = () => {
+    panel.hidden = true;
+    panel.setAttribute("aria-hidden", "true");
+  };
 
   const supported = "serviceWorker" in navigator &&
     "PushManager" in window &&
     "Notification" in window;
 
   if (!supported) {
+    showPanel();
     button.disabled = true;
     status.textContent = "Цей браузер не підтримує вебсповіщення.";
     return;
@@ -21,19 +32,20 @@
           ? await registration.pushManager.getSubscription()
           : null;
         if (existingSubscription) {
-          button.hidden = true;
-          button.setAttribute("aria-hidden", "true");
-          status.textContent = "Сповіщення вже увімкнено на цьому пристрої.";
+          hidePanel();
           return;
         }
+        showPanel();
         button.disabled = false;
         status.textContent = "Увімкніть сповіщення, щоб отримувати нові перевірені оголошення.";
       } else {
+        showPanel();
         button.disabled = true;
         status.textContent = "Підключення сповіщень буде завершено після налаштування Cloudflare Worker.";
       }
     })
     .catch(() => {
+      showPanel();
       button.disabled = true;
       status.textContent = "Не вдалося зареєструвати службу сповіщень.";
     });
@@ -70,9 +82,7 @@
         body: JSON.stringify(subscription)
       });
       if (!response.ok) throw new Error("Subscription could not be saved");
-      status.textContent = "Сповіщення увімкнено на цьому пристрої.";
-      button.hidden = true;
-      button.setAttribute("aria-hidden", "true");
+      hidePanel();
     } catch {
       status.textContent = "Не вдалося увімкнути сповіщення. Спробуйте ще раз пізніше.";
     } finally {
