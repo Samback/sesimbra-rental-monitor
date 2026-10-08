@@ -9,7 +9,7 @@ if (!/^<!doctype html>/i.test(html.trimStart())) {
   fail("Missing HTML doctype.");
 }
 
-const pairedTags = ["html", "head", "body", "main", "section", "article", "script", "div"];
+const pairedTags = ["html", "head", "body", "main", "section", "article", "script", "div", "p"];
 for (const tag of pairedTags) {
   const opening = matches(html, new RegExp("<" + tag + "\\b", "gi")).length;
   const closing = matches(html, new RegExp("</" + tag + "\\s*>", "gi")).length;
