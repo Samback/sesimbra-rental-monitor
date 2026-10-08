@@ -137,7 +137,17 @@ function isConfirmedLongTerm(value) {
   if (/short[\s-]*term|temporary|tempor[aá]ria|temporada|curta dura[cç][aã]o|27\s*dias/i.test(value)) {
     return false;
   }
-  return /(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков(?:ий|а|е|ість)|contrato(?:\s+de)?\s+\d+\s+anos)[^.!?]{0,100}(?:confirmad[oa]|confirmed|sim|yes)|(?:confirmad[oa]|confirmed|sim|yes)[^.!?]{0,100}(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков|contrato de longa dura[cç][aã]o)/i.test(value);
+
+  const phrase = /(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков(?:ий|а|е|ість)|contrato(?:\s+de)?\s+\d+\s+anos)[^.!?]{0,100}(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))|(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))[^.!?]{0,100}(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков|contrato de longa dura[cç]a?o)/gi;
+  const negatedConfirmation = /(?:\b(?:not|não|nao|не|нет)\b[^.!?]{0,35}(?:confirmad[oa]|confirmed|підтверджен(?:о|а|ий|і)))/i;
+
+  for (const match of value.matchAll(phrase)) {
+    const precedingText = value.slice(Math.max(0, match.index - 20), match.index);
+    if (/\b(?:not|não|nao|не|нет)\s*$/i.test(precedingText)) continue;
+    if (negatedConfirmation.test(match[0])) continue;
+    return true;
+  }
+  return false;
 }
 
 function listingHref(card) {
