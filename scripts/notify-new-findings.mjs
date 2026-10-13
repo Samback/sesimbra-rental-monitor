@@ -19,7 +19,11 @@ if (!workerUrl || !token) {
 
 let previousHtml;
 try {
-  previousHtml = execFileSync("git", ["show", before + ":index.html"], { encoding: "utf8" });
+  // The catalog contains inline photo data and is larger than Node's default 1 MiB buffer.
+  previousHtml = execFileSync("git", ["show", before + ":index.html"], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024
+  });
 } catch {
   console.log("Previous index.html is unavailable; skipping notifications for this push.");
   process.exit(0);
