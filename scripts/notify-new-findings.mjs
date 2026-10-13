@@ -142,7 +142,7 @@ function isConfirmedLongTerm(value) {
     return false;
   }
 
-  const phrase = /(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков(?:ий|а|е|ість)|contrato(?:\s+de)?\s+\d+\s+anos)[^.!?]{0,100}(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))|(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))[^.!?]{0,100}(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков|contrato de longa dura[cç]a?o)/gi;
+  const phrase = /(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков[а-яіїєґ]*|contrato(?:\s+de)?\s+\d+\s+anos)[^.!?]{0,100}(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))|(?:confirmad[oa]|confirmed|sim|yes|підтверджен(?:о|а|ий|і))[^.!?]{0,100}(?:long[\s-]*term|longa dura[cç][aã]o|довгостроков|contrato de longa dura[cç]a?o)/gi;
   const negatedConfirmation = /(?:\b(?:not|não|nao|не|нет)\b[^.!?]{0,35}(?:confirmad[oa]|confirmed|підтверджен(?:о|а|ий|і)))/i;
 
   for (const match of value.matchAll(phrase)) {
