@@ -23,7 +23,7 @@ section{margin:32px 0}h2{margin:0;font-size:26px}.subtitle{color:#687480;margin:
 .photo-count{position:absolute;bottom:10px;right:10px;background:rgba(17,24,39,.84);color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:700}
 .media-fallback{min-height:122px;background:linear-gradient(135deg,#edf1f4,#e2e7eb);display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:14px;color:#65717d}
 .media-fallback b{font-size:16px;margin:8px 0}.media-fallback span{font-size:13px;line-height:1.45;max-width:330px}.media-fallback a{margin-top:10px;padding:8px 11px;border-radius:8px;background:#fff;color:#285b81;font-size:13px;text-decoration:none;border:1px solid #d8e0e6}
-.body{padding:17px}.source{font-size:12px;color:#75808b;text-align:right}h3{font-size:20px;margin:8px 0 3px}.price{font-size:25px;font-weight:850;margin-bottom:10px}
+.body{padding:17px}.source{font-size:12px;color:#75808b;text-align:right;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}h3{font-size:20px;margin:8px 0 3px}.price{font-size:25px;font-weight:850;margin-bottom:10px}.status.status-brief{font-size:13px;margin:8px 0;padding:7px 9px}.status.status-full{font-size:13px;font-weight:600}
 .facts{display:flex;gap:6px;flex-wrap:wrap}.facts span{background:#f0f3f5;border-radius:8px;padding:7px 9px;font-size:13px}
 .body .property-meta{margin:10px 0 0;padding:9px 10px;border-left:3px solid #8393a1;border-radius:8px;background:#f5f8fa;color:#394754;font-size:13px;line-height:1.45}.body .property-meta strong{color:#17212b}.status.status-filtered{border-left-color:#a9480a;background:#fff3e9;color:#82330b}
 .status{margin:13px 0;padding:9px 11px;border-left:4px solid #087b57;background:#effaf6;color:#086b4c;font-weight:700;font-size:14px}
@@ -370,7 +370,7 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
 <div class="price">€1 200/міс.</div>
 <div class="facts"><span>100 м² брутто</span><span>корисна площа: потребує підтвердження</span><span>T4 · 4 спальні</span><span>2 ванні кімнати</span><span>Santana, Sesimbra (Castelo)</span><span>відновлена</span><span>кондиціонер</span><span>сонячна система підігріву води</span><span>меблювання/кухня/паркування/сад: потребує підтвердження</span><span>строк договору й поточна доступність: потребують підтвердження</span><span>рік побудови: потребує підтвердження</span><span>енергоклас: потребує підтвердження</span></div>
 <div class="property-meta"><strong>Рік побудови:</strong> потребує підтвердження · <strong>Енергоефективність:</strong> потребує підтвердження</div>
-<div class="status status-filtered">Оренда JZegre за €1 200/міс., T4 Santana. Довгостроковий строк договору не вказано; підтвердьте строк і наявність перед переглядом.</div>
+<div class="status">T4 за €1 200/міс. відповідає основним критеріям; строк договору й актуальну наявність потрібно підтвердити.</div>
 <p>Офіційна сторінка описує окрему квартиру на першому поверсі двосімейного будинку в Santana: чотири кімнати, дві ванні кімнати, кухня, кондиціонер і сонячний підігрів води. Точну корисну площу, рік, енергоклас, меблі та обладнання кухні потрібно уточнити.</p>
 
 <a class="btn" href="https://www.jzegre.pt/imovel/moradia-bi-familiar-rc/20929535" rel="noopener" target="_blank">Відкрити конкретне оголошення →</a>
@@ -1106,7 +1106,9 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
       var media=body.parentElement.querySelector(':scope > .media-fallback');
       var photoCopy=media ? media.querySelector(':scope > span') : null;
       var photoText=photoCopy ? photoCopy.textContent.trim() : '';
-      if(!extraFacts.length && !notes.length && !photoText) return;
+      var status=body.querySelector(':scope > .status');
+      var fullStatus=status ? status.textContent.trim() : '';
+      if(!extraFacts.length && !notes.length && !photoText && !status) return;
       var details=document.createElement('details');
       details.className='card-more';
       var summary=document.createElement('summary');
@@ -1114,6 +1116,23 @@ footer{padding:0 16px 35px;color:#687480;font-size:13px;line-height:1.5}
       details.appendChild(summary);
       var inner=document.createElement('div');
       inner.className='card-more-content';
+      if(status && fullStatus){
+        var statusCopy=status.cloneNode(true);
+        statusCopy.classList.add('status-full');
+        statusCopy.textContent='Повний статус і умови: '+fullStatus;
+        inner.appendChild(statusCopy);
+        if(status.classList.contains('status-removed')){
+          status.textContent='Зняте або здане — не вважати доступним.';
+        }else if(status.classList.contains('status-filtered')){
+          var brief=fullStatus.split(/[.;](?:\s|$)/)[0].trim();
+          if(!/^відфільтр|^відсіяно/i.test(brief)) brief='Відфільтровано: '+brief;
+          if(brief.length>105) brief=brief.slice(0,102).replace(/\s+\S*$/,'')+'…';
+          status.textContent=brief;
+        }else{
+          status.textContent='Наявність і строки: перевірте перед контактом.';
+        }
+        status.classList.add('status-brief');
+      }
       if(extraFacts.length){
         var extra=document.createElement('div');
         extra.className='facts facts-extra';
