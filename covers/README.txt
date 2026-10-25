@@ -1,0 +1,1 @@
+Locally cached first image for each listing with a verified photo. Remaining gallery photos use exact image URLs extracted from that listing’s direct source; photo-sources.json stores each listing/photo URL and exact AI mark where a portal supplied one. Do not use stock/other-property images. A blank state means no reliable image bytes or URL were available.
